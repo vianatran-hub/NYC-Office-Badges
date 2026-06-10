@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daloopa Badges</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; }
+
+  header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: .5px; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .save-status {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.12);
+    white-space: nowrap;
+    transition: background .3s;
+  }
+  .save-status.saved { background: #1e7e34; }
+  .save-status.unsaved { background: #856404; }
+
+  .btn {
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn-green  { background: #28a745; color: #fff; }
+  .btn-blue   { background: #0d6efd; color: #fff; }
+  .btn-red    { background: #dc3545; color: #fff; }
+  .btn-gray   { background: #6c757d; color: #fff; }
+  .btn-outline { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4); }
+
+  .toolbar {
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .toolbar input[type="text"] {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 13px;
+    width: 220px;
+    font-family: Arial, sans-serif;
+  }
+  .sep { width: 1px; height: 22px; background: #ddd; margin: 0 4px; }
+  .btn:disabled { opacity: .4; cursor: default; filter: none; }
+
+  .table-wrap {
+    padding: 16px 24px;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  th {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { background: #2d2d4e; }
+  th .sort-arrow { margin-left: 5px; opacity: .5; font-size: 11px; }
+  th.asc .sort-arrow::after { content: '▲'; opacity: 1; }
+  th.desc .sort-arrow::after { content: '▼'; opacity: 1; }
+  th:not(.asc):not(.desc) .sort-arrow::after { content: '⇅'; }
+
+  td {
+    padding: 0;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f0f4ff; }
+  tr.strikethrough td .cell-text { text-decoration: line-through; color: #999; }
+  tr.strikethrough { background: #fafafa; }
+
+  .cell-text {
+    display: block;
+    padding: 8px 12px;
+    min-height: 36px;
+    outline: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .cell-text:focus {
+    background: #fffde7;
+    box-shadow: inset 0 0 0 2px #f0ad00;
+  }
+  .cell-text:empty::before {
+    content: attr(data-placeholder);
+    color: #bbb;
+    pointer-events: none;
+  }
+
+  td.col-actions {
+    width: 90px;
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
+  .action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 3px 5px;
+    border-radius: 3px;
+    line-height: 1;
+    transition: background .15s;
+  }
+  .action-btn:hover { background: #e9ecef; }
+  .action-btn.strike { color: #555; }
+  .action-btn.del { color: #dc3545; }
+
+  .row-num {
+    width: 40px;
+    text-align: center;
+    color: #aaa;
+    font-size: 12px;
+    padding: 8px 4px;
+    user-select: none;
+    border-right: 1px solid #e9ecef;
+  }
+
+  .count-bar {
+    padding: 6px 24px;
+    font-size: 12px;
+    color: #666;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 6px;
+    padding: 24px;
+    width: 340px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+  }
+  .modal h2 { margin-bottom: 16px; font-size: 16px; }
+  .modal label { display: block; font-size: 13px; margin-bottom: 4px; color: #444; }
+  .modal input {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    margin-bottom: 12px;
+  }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Daloopa Badges</h1>
+  <div class="header-right">
+    <span class="save-status saved" id="saveStatus">✓ Saved</span>
+    <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-red" onclick="confirmReset()">Reset to Original</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button class="btn btn-green" onclick="openAddModal()">+ Add Row</button>
+  <button class="btn btn-blue" id="undoBtn" onclick="undo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+  <div class="sep"></div>
+  <input type="text" id="searchBox" placeholder="Search…" oninput="applyFilter()">
+  <button class="btn btn-gray" onclick="clearSearch()">Clear</button>
+  <div class="sep"></div>
+  <button class="btn btn-outline" style="background:#6c757d;color:#fff" onclick="toggleShowStruck()">
+    <span id="struckToggleLabel">Hide Struck-out</span>
+  </button>
+</div>
+
+<div class="table-wrap">
+  <table id="badgeTable">
+    <thead>
+      <tr>
+        <th style="width:40px">#</th>
+        <th class="sortable" data-col="0" onclick="sortBy(0)">Full Name <span class="sort-arrow"></span></th>
+        <th class="sortable" data-col="1" onclick="sortBy(1)">Number <span class="sort-arrow"></span></th>
+        <th class="sortable" data-col="2" onclick="sortBy(2)">Date Issued <span class="sort-arrow"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="count-bar" id="countBar"></div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add Row</h2>
+    <label>Full Name</label>
+    <input type="text" id="mName" placeholder="Full Name">
+    <label>Number</label>
+    <input type="text" id="mNumber" placeholder="Badge Number">
+    <label>Date Issued</label>
+    <input type="text" id="mDate" placeholder="YYYY-MM-DD">
+    <div class="modal-btns">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-green" id="modalSaveBtn" onclick="saveModal()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'daloopa_badges_v1';
+
+const ORIGINAL = [
+  ["Amber Smoczyk","4038258","2026-02-02"],
+  ["Andre Burke","4038259","2026-02-02"],
+  ["Andres Gomez","4038263","2026-02-02"],
+  ["Atiya Sharmin","4038262","2026-02-02"],
+  ["Austin Albertson","4038261","2026-02-02"],
+  ["Benjamin Gould","4038260","2026-02-02"],
+  ["Chris Feltmann","4009052","2026-02-02"],
+  ["Conrad McKinnon","4009051","2026-02-02"],
+  ["Cory McHattie","4009050","2026-02-02"],
+  ["Daniel Chen","4009049","2026-02-02"],
+  ["Edward Dennis","4009048","2026-02-02"],
+  ["Elise Miller","4009047","2026-02-02"],
+  ["Gary Merer","4009046","2026-02-02"],
+  ["Henry Wesson","4009045","2026-02-02"],
+  ["John Paribello","4009044","2026-02-02"],
+  ["John Turner","4009043","2026-02-02"],
+  ["Justin Rothhaupt","4009042","2026-02-02"],
+  ["Juwon Lee","4009041","2026-02-02"],
+  ["Karen Shi","4009040","2026-02-02"],
+  ["Karina Paez-Rojas","4009039","2026-02-02"],
+  ["Kevin Thuyamany","4009038","2026-02-02"],
+  ["Kyle Alper","4009037","2026-02-02"],
+  ["Kyle Palazzotto","4009036","2026-02-02"],
+  ["Marianne Constantino","4009035","2026-02-02"],
+  ["Mark Amicucci","4009034","2026-02-02"],
+  ["Meghan Rooney","4009033","2026-02-02"],
+  ["Michael Nalaskowski","4009032","2026-02-02"],
+  ["Michael Perone","4009031","2026-02-02"],
+  ["Myles Vandell","4009030","2026-02-02"],
+  ["Nehal Mehra","4009029","2026-02-02"],
+  ["Peter Keevil","4009028","2026-02-02"],
+  ["Sean Garvey","4009027","2026-02-02"],
+  ["Thomas Li","4009026","2026-02-02"],
+  ["Kurt Meyerhoff","4009025","2026-02-02"],
+  ["Jeffrey Fox","2762159","2026-02-02"],
+  ["Viana Tran","2762167","2026-02-02"],
+  ["Chris Yedibalian","2762166","2026-02-02"],
+  ["Andrew Camilleri","2762165","2026-02-02"],
+  ["Thomas Dubois","2762164","2026-02-02"],
+  ["Bryan Carse","2762163","2026-02-02"],
+  ["Robert Kirk","2762162","2026-02-02"],
+  ["Gabriella Hernandez","2762161","2026-02-02"],
+  ["Thomas Cardosa","2762160","2026-02-02"],
+  ["Steve Khuu","2762156","2026-02-17"],
+  ["Jouse Martinez","2762155","2026-02-17"],
+  ["Daloopa Temp 01","2762157","2026-02-17"],
+  ["Daloopa Temp 02","2762158","2026-02-17"],
+  ["Alexandra Paone","2762149","2026-02-20"],
+  ["Christina Scott","2762152","2026-02-20"],
+  ["Emily Vilardi","2762150","2026-02-20"],
+  ["Rachel Garland","2762151","2026-02-20"],
+  ["Leo Kulp","2762153","2026-02-20"],
+  ["Gloria Lin","2762154","2026-02-20"],
+  ["Jie Jeremy Huang","2762170","2026-03-18"],
+  ["Sarah Rundbaken","",""],
+  ["Adam Felsenthal","",""]
+];
+
+// State
+let rows = [];        // [{id, cells:[name,num,date], struck:bool}]
+let sortCol = -1;
+let sortDir = 1;
+let showStruck = true;
+let filterText = '';
+let dirty = false;
+let editingId = null;
+
+const UNDO_LIMIT = 10;
+let undoStack = [];
+
+function snapshot(label) {
+  undoStack.push({ label, rows: JSON.stringify(rows) });
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  updateUndoBtn();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  const state = undoStack.pop();
+  rows = JSON.parse(state.rows);
+  markDirty();
+  render();
+  updateUndoBtn();
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('undoBtn');
+  if (!btn) return;
+  btn.disabled = undoStack.length === 0;
+  btn.title = undoStack.length
+    ? `Undo: ${undoStack[undoStack.length-1].label} (Ctrl+Z)`
+    : 'Nothing to undo';
+}
+
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function load() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) { rows = JSON.parse(saved); return; }
+  } catch(e) {}
+  rows = ORIGINAL.map(r => ({ id: newId(), cells: [...r], struck: false }));
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  dirty = false;
+  setStatus('saved');
+}
+
+function markDirty() {
+  dirty = true;
+  setStatus('unsaved');
+}
+
+function setStatus(state) {
+  const el = document.getElementById('saveStatus');
+  if (state === 'saved') {
+    el.textContent = '✓ Saved';
+    el.className = 'save-status saved';
+  } else {
+    el.textContent = '● Unsaved changes';
+    el.className = 'save-status unsaved';
+  }
+}
+
+function visibleRows() {
+  let list = rows;
+  if (!showStruck) list = list.filter(r => !r.struck);
+  if (filterText) {
+    const q = filterText.toLowerCase();
+    list = list.filter(r => r.cells.some(c => c.toLowerCase().includes(q)));
+  }
+  if (sortCol >= 0) {
+    list = [...list].sort((a, b) => {
+      const av = a.cells[sortCol] || '', bv = b.cells[sortCol] || '';
+      return av.localeCompare(bv, undefined, {numeric: true}) * sortDir;
+    });
+  }
+  return list;
+}
+
+function render() {
+  const tbody = document.getElementById('tbody');
+  const list = visibleRows();
+  tbody.innerHTML = '';
+  list.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    if (row.struck) tr.classList.add('strikethrough');
+    tr.dataset.id = row.id;
+
+    // Row number
+    const tdNum = document.createElement('td');
+    tdNum.className = 'row-num';
+    tdNum.textContent = i + 1;
+    tr.appendChild(tdNum);
+
+    // Data cells
+    const placeholders = ['Full Name', 'Badge Number', 'Date Issued'];
+    row.cells.forEach((val, ci) => {
+      const td = document.createElement('td');
+      const span = document.createElement('span');
+      span.className = 'cell-text';
+      span.contentEditable = 'true';
+      span.textContent = val;
+      span.dataset.col = ci;
+      span.dataset.placeholder = placeholders[ci];
+      let preEditVal = '';
+      span.addEventListener('focus', () => { preEditVal = span.textContent; });
+      span.addEventListener('blur', () => {
+        const newVal = span.textContent;
+        if (newVal !== preEditVal) {
+          // snapshot was already taken on focus; update row value
+          row.cells[ci] = newVal;
+          markDirty();
+        }
+      });
+      span.addEventListener('focus', () => {
+        snapshot(`Edit "${row.cells[0] || 'row'}"`);
+      });
+      span.addEventListener('input', () => {
+        row.cells[ci] = span.textContent;
+        markDirty();
+      });
+      span.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const next = tr.nextElementSibling;
+          if (next) {
+            const cells = next.querySelectorAll('.cell-text');
+            if (cells[ci]) cells[ci].focus();
+          }
+        }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const allCells = tr.querySelectorAll('.cell-text');
+          const idx = Array.from(allCells).indexOf(span);
+          if (!e.shiftKey && idx < allCells.length - 1) {
+            allCells[idx + 1].focus();
+          } else if (e.shiftKey && idx > 0) {
+            allCells[idx - 1].focus();
+          }
+        }
+      });
+      td.appendChild(span);
+      tr.appendChild(td);
+    });
+
+    // Actions
+    const tdAct = document.createElement('td');
+    tdAct.className = 'col-actions';
+
+    const strikeBtn = document.createElement('button');
+    strikeBtn.className = 'action-btn strike';
+    strikeBtn.title = row.struck ? 'Remove strikethrough' : 'Strike out';
+    strikeBtn.textContent = row.struck ? '↩' : 'S̶';
+    strikeBtn.onclick = () => {
+      snapshot(`${row.struck ? 'Unstrike' : 'Strike'} "${row.cells[0]}"`);
+      row.struck = !row.struck;
+      markDirty();
+      render();
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'action-btn del';
+    delBtn.title = 'Delete row';
+    delBtn.textContent = '🗑';
+    delBtn.onclick = () => {
+      if (confirm(`Delete "${row.cells[0]}"?`)) {
+        snapshot(`Delete "${row.cells[0]}"`);
+        rows = rows.filter(r => r.id !== row.id);
+        markDirty();
+        render();
+      }
+    };
+
+    tdAct.appendChild(strikeBtn);
+    tdAct.appendChild(delBtn);
+    tr.appendChild(tdAct);
+    tbody.appendChild(tr);
+  });
+
+  // Count bar
+  const total = rows.length;
+  const struck = rows.filter(r => r.struck).length;
+  const active = total - struck;
+  document.getElementById('countBar').textContent =
+    `${total} rows total · ${active} active · ${struck} struck out` +
+    (filterText ? ` · ${list.length} matching filter` : '');
+}
+
+function sortBy(col) {
+  if (sortCol === col) { sortDir *= -1; }
+  else { sortCol = col; sortDir = 1; }
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    th.classList.remove('asc', 'desc');
+    if (parseInt(th.dataset.col) === col) {
+      th.classList.add(sortDir === 1 ? 'asc' : 'desc');
+    }
+  });
+  render();
+}
+
+function applyFilter() {
+  filterText = document.getElementById('searchBox').value.trim();
+  render();
+}
+
+function clearSearch() {
+  document.getElementById('searchBox').value = '';
+  filterText = '';
+  render();
+}
+
+function toggleShowStruck() {
+  showStruck = !showStruck;
+  document.getElementById('struckToggleLabel').textContent =
+    showStruck ? 'Hide Struck-out' : 'Show Struck-out';
+  render();
+}
+
+// Add modal
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Add Row';
+  document.getElementById('modalSaveBtn').textContent = 'Add';
+  document.getElementById('mName').value = '';
+  document.getElementById('mNumber').value = '';
+  document.getElementById('mDate').value = '';
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('mName').focus();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function saveModal() {
+  const name = document.getElementById('mName').value.trim();
+  const num  = document.getElementById('mNumber').value.trim();
+  const date = document.getElementById('mDate').value.trim();
+  if (!name && !num && !date) { closeModal(); return; }
+  snapshot('Add row');
+  rows.push({ id: newId(), cells: [name, num, date], struck: false });
+  markDirty();
+  render();
+  closeModal();
+}
+
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    // Only undo if focus is not inside a contenteditable cell
+    if (!document.activeElement.classList.contains('cell-text')) {
+      e.preventDefault();
+      undo();
+    }
+  }
+});
+
+// Modal enter key
+['mName','mNumber','mDate'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveModal();
+  });
+});
+
+function exportCSV() {
+  const header = ['Full Name','Number','Date Issued'];
+  const lines = [header.join(',')];
+  rows.forEach(r => {
+    lines.push(r.cells.map(c => `"${c.replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'daloopa-badges.csv';
+  a.click();
+}
+
+function confirmReset() {
+  if (confirm('Reset to original spreadsheet data? All edits will be lost.')) {
+    snapshot('Before reset');
+    rows = ORIGINAL.map(r => ({ id: newId(), cells: [...r], struck: false }));
+    save();
+    render();
+  }
+}
+
+// Auto-save on page leave
+window.addEventListener('beforeunload', () => { save(); });
+
+// Also auto-save every 30s if dirty
+setInterval(() => { if (dirty) save(); }, 30000);
+
+// Init
+load();
+render();
+</script>
+</body>
+</html>
