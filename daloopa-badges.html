@@ -251,7 +251,9 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'daloopa_badges_v1';
+const BIN_ID = '6a301ca0f5f4af5e29f5f428';
+const API_KEY = '$2a$10$D0Tu3qHd0d0QCF8BlmIseOLcLG81WucwQkhE9EqAbZW9tMXSruKsa';
+const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
 const ORIGINAL = [
   ["Amber Smoczyk","4038258","2026-02-02"],
@@ -312,8 +314,7 @@ const ORIGINAL = [
   ["Adam Felsenthal","",""]
 ];
 
-// State
-let rows = [];        // [{id, cells:[name,num,date], struck:bool}]
+let rows = [];
 let sortCol = -1;
 let sortDir = 1;
 let showStruck = true;
@@ -350,18 +351,32 @@ function updateUndoBtn() {
 
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-function load() {
+async function load() {
+  setStatus('loading');
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) { rows = JSON.parse(saved); return; }
-  } catch(e) {}
-  rows = ORIGINAL.map(r => ({ id: newId(), cells: [...r], struck: false }));
+    const res = await fetch(BIN_URL + '/latest', {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    const data = await res.json();
+    rows = data.record.rows;
+  } catch(e) {
+    rows = ORIGINAL.map(r => ({ id: newId(), cells: [...r], struck: false }));
+  }
 }
 
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-  dirty = false;
-  setStatus('saved');
+async function save() {
+  setStatus('saving');
+  try {
+    await fetch(BIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+      body: JSON.stringify({ rows })
+    });
+    dirty = false;
+    setStatus('saved');
+  } catch(e) {
+    setStatus('unsaved');
+  }
 }
 
 function markDirty() {
@@ -371,13 +386,10 @@ function markDirty() {
 
 function setStatus(state) {
   const el = document.getElementById('saveStatus');
-  if (state === 'saved') {
-    el.textContent = '✓ Saved';
-    el.className = 'save-status saved';
-  } else {
-    el.textContent = '● Unsaved changes';
-    el.className = 'save-status unsaved';
-  }
+  if (state === 'saved')        { el.textContent = '✓ Saved';           el.className = 'save-status saved'; }
+  else if (state === 'saving')  { el.textContent = '⏳ Saving…';         el.className = 'save-status'; }
+  else if (state === 'loading') { el.textContent = '⏳ Loading…';        el.className = 'save-status'; }
+  else                          { el.textContent = '● Unsaved changes'; el.className = 'save-status unsaved'; }
 }
 
 function visibleRows() {
@@ -405,13 +417,11 @@ function render() {
     if (row.struck) tr.classList.add('strikethrough');
     tr.dataset.id = row.id;
 
-    // Row number
     const tdNum = document.createElement('td');
     tdNum.className = 'row-num';
     tdNum.textContent = i + 1;
     tr.appendChild(tdNum);
 
-    // Data cells
     const placeholders = ['Full Name', 'Badge Number', 'Date Issued'];
     row.cells.forEach((val, ci) => {
       const td = document.createElement('td');
@@ -426,7 +436,6 @@ function render() {
       span.addEventListener('blur', () => {
         const newVal = span.textContent;
         if (newVal !== preEditVal) {
-          // snapshot was already taken on focus; update row value
           row.cells[ci] = newVal;
           markDirty();
         }
@@ -462,7 +471,6 @@ function render() {
       tr.appendChild(td);
     });
 
-    // Actions
     const tdAct = document.createElement('td');
     tdAct.className = 'col-actions';
 
@@ -496,7 +504,6 @@ function render() {
     tbody.appendChild(tr);
   });
 
-  // Count bar
   const total = rows.length;
   const struck = rows.filter(r => r.struck).length;
   const active = total - struck;
@@ -535,7 +542,6 @@ function toggleShowStruck() {
   render();
 }
 
-// Add modal
 function openAddModal() {
   editingId = null;
   document.getElementById('modalTitle').textContent = 'Add Row';
@@ -570,7 +576,6 @@ document.getElementById('modalOverlay').addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-    // Only undo if focus is not inside a contenteditable cell
     if (!document.activeElement.classList.contains('cell-text')) {
       e.preventDefault();
       undo();
@@ -578,7 +583,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Modal enter key
 ['mName','mNumber','mDate'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', e => {
     if (e.key === 'Enter') saveModal();
@@ -607,15 +611,13 @@ function confirmReset() {
   }
 }
 
-// Auto-save on page leave
-window.addEventListener('beforeunload', () => { save(); });
-
-// Also auto-save every 30s if dirty
+window.addEventListener('beforeunload', () => { if (dirty) save(); });
 setInterval(() => { if (dirty) save(); }, 30000);
 
-// Init
-load();
-render();
+(async () => {
+  await load();
+  render();
+})();
 </script>
 </body>
 </html>
